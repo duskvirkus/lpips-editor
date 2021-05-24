@@ -2,16 +2,68 @@ import sys
 
 import cv2
 import os
+import numpy as np
 
 from PyQt5 import QtGui, QtWidgets
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QTextEdit, QAction, QApplication, QFileDialog
 from PyQt5.QtGui import QIcon, QPixmap
+
+def create_blank(width, height, rgb_color=(0, 0, 0)):
+    """Create new image(numpy array) filled with certain color in RGB"""
+    # Create black blank image
+    image = np.zeros((height, width, 3), np.uint8)
+
+    # Since OpenCV uses BGR, convert the color first
+    color = tuple(reversed(rgb_color))
+    # Fill image with color
+    image[:] = color
+
+    return image
 
 
 class GUI(QMainWindow):
 
     def __init__(self):
         super().__init__()
+
+        self.core_widget = QtWidgets.QWidget()
+        self.core_v_layout = QtWidgets.QVBoxLayout()
+        self.core_widget.setLayout(self.core_v_layout)
+
+        self.secondary_h_layout = QtWidgets.QHBoxLayout()
+        self.secondary_h_layout.addStretch(1)
+        self.core_v_layout.addLayout(self.secondary_h_layout)
+
+        self.navigation = QtWidgets.QHBoxLayout()
+        self.next_image = QtWidgets.QPushButton('Next Image')
+        self.navigation.addWidget(self.next_image)
+        self.core_v_layout.addLayout(self.navigation)
+
+        self.comparison_scroll = QtWidgets.QScrollArea()
+        self.secondary_h_layout.addWidget(self.comparison_scroll)
+        self.comparison_v_layout = QtWidgets.QVBoxLayout(self.comparison_scroll)
+        self.comparison_frames = []
+        comparison_count = 10
+        for i in range(comparison_count):
+            self.comparison_frames.append(QtWidgets.QLabel())
+            self.comparison_v_layout.addWidget(self.comparison_frames[-1])
+        self.update_comparison_images()
+
+        self.editor_grid = QtWidgets.QGridLayout()
+        self.editor_image_frames = []
+        editor_images_dim = 7
+        for i in range(editor_images_dim * editor_images_dim):
+            self.editor_image_frames.append(QtWidgets.QLabel())
+            self.editor_grid.addWidget(
+                self.editor_image_frames[-1],
+                i // editor_images_dim,
+                i % editor_images_dim,
+                Qt.AlignCenter
+            )
+        self.update_editor_images()
+        self.secondary_h_layout.addLayout(self.editor_grid)
+
         self.image_frame = QtWidgets.QLabel()
         self.init_ui()
 
@@ -40,14 +92,14 @@ class GUI(QMainWindow):
         file_menu.addAction(open_dataset_action)
         file_menu.addAction(exit_action)
 
-        toolbar = self.addToolBar('Exit')
-        toolbar.addAction(open_ref_image_action)
-        toolbar.addAction(open_dataset_action)
-        toolbar.addAction(exit_action)
+        # toolbar = self.addToolBar('Exit')
+        # toolbar.addAction(open_ref_image_action)
+        # toolbar.addAction(open_dataset_action)
+        # toolbar.addAction(exit_action)
 
-        self.setCentralWidget(self.image_frame)
+        self.setCentralWidget(self.core_widget)
 
-        self.setGeometry(300, 300, 350, 250)
+        self.setGeometry(0, 0, 1024, 768)
         self.setWindowTitle('Main window')
         self.show()
 
@@ -60,8 +112,23 @@ class GUI(QMainWindow):
         dir_name = QFileDialog.getExistingDirectory(self, 'Open Dataset')
         editor.set_dataset_dir(dir_name)
 
+    def update_comparison_images(self):
+        img = editor.ref_image
+        size = 64
+        img = cv2.resize(img, (size, size))
+        img_display = QtGui.QImage(
+            img.data,
+            img.shape[1],
+            img.shape[0],
+            QtGui.QImage.Format_RGB888
+        ).rgbSwapped()
+        for i in range(len(self.comparison_frames)):
+            self.comparison_frames[i].setPixmap(QtGui.QPixmap.fromImage(img_display))
+
     def show_ref_image(self):
-        ref_img = editor.ref_image;
+        ref_img = editor.ref_image
+        size = 100
+        ref_img = cv2.resize(ref_img, (size, size))
         ref_image_display = QtGui.QImage(
             ref_img.data,
             ref_img.shape[1],
@@ -70,16 +137,30 @@ class GUI(QMainWindow):
         ).rgbSwapped()
         self.image_frame.setPixmap(QtGui.QPixmap.fromImage(ref_image_display))
 
+    def update_editor_images(self):
+        img = editor.current_image
+        size = 100
+        img = cv2.resize(img, (size, size))
+        img_display = QtGui.QImage(
+            img.data,
+            img.shape[1],
+            img.shape[0],
+            QtGui.QImage.Format_RGB888
+        ).rgbSwapped()
+        for i in range(len(self.editor_image_frames)):
+            self.editor_image_frames[i].setPixmap(QtGui.QPixmap.fromImage(img_display))
+
+
 
 class Editor:
 
     def __init__(self):
-        self.ref_image = None
+        self.ref_image = create_blank(1024, 1024, rgb_color=(0, 255, 0))
         self.dataset_dir = ''
 
         self.image_list_index = 0
         self.image_list = None
-        self.current_image = None
+        self.current_image = create_blank(1024, 1024, rgb_color=(255, 0, 0))
 
     def set_ref_image(self, path):
         self.ref_image = cv2.imread(path)
