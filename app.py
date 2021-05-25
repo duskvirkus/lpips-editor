@@ -9,6 +9,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QTextEdit, QAction, QApplication, QFileDialog
 from PyQt5.QtGui import QIcon, QPixmap
 
+
 def create_blank(width, height, rgb_color=(0, 0, 0)):
     """Create new image(numpy array) filled with certain color in RGB"""
     # Create black blank image
@@ -50,21 +51,22 @@ class GUI(QMainWindow):
             self.comparison_v_layout.addWidget(self.comparison_frames[-1])
         self.update_comparison_images()
 
-        self.editor_grid = QtWidgets.QGridLayout()
-        self.editor_image_frames = []
-        editor_images_dim = 7
-        for i in range(editor_images_dim * editor_images_dim):
-            self.editor_image_frames.append(QtWidgets.QLabel())
-            self.editor_grid.addWidget(
-                self.editor_image_frames[-1],
-                i // editor_images_dim,
-                i % editor_images_dim,
-                Qt.AlignCenter
-            )
-        self.update_editor_images()
-        self.secondary_h_layout.addLayout(self.editor_grid)
+        # self.editor_grid = QtWidgets.QGridLayout()
+        # self.editor_image_frames = []
+        # editor_images_dim = 7
+        # for i in range(editor_images_dim * editor_images_dim):
+        #     self.editor_image_frames.append(QtWidgets.QLabel())
+        #     self.editor_grid.addWidget(
+        #         self.editor_image_frames[-1],
+        #         i // editor_images_dim,
+        #         i % editor_images_dim,
+        #         Qt.AlignCenter
+        #     )
+        # self.update_editor_images()
+        # self.secondary_h_layout.addLayout(self.editor_grid)
+        edit_grid.create_q_widgets()
+        edit_grid.set_grid_parent(self.secondary_h_layout)
 
-        self.image_frame = QtWidgets.QLabel()
         self.init_ui()
 
     def init_ui(self):
@@ -106,11 +108,12 @@ class GUI(QMainWindow):
     def open_ref_image(self):
         reference_image = QFileDialog.getOpenFileName(self, 'Open Reference Image', '~', "Image files (*.jpg *.png)")
         editor.set_ref_image(reference_image[0])
-        self.show_ref_image()
+        self.update_comparison_images()
 
     def open_dataset(self):
         dir_name = QFileDialog.getExistingDirectory(self, 'Open Dataset')
         editor.set_dataset_dir(dir_name)
+        # self.update_editor_images()
 
     def update_comparison_images(self):
         img = editor.ref_image
@@ -125,18 +128,6 @@ class GUI(QMainWindow):
         for i in range(len(self.comparison_frames)):
             self.comparison_frames[i].setPixmap(QtGui.QPixmap.fromImage(img_display))
 
-    def show_ref_image(self):
-        ref_img = editor.ref_image
-        size = 100
-        ref_img = cv2.resize(ref_img, (size, size))
-        ref_image_display = QtGui.QImage(
-            ref_img.data,
-            ref_img.shape[1],
-            ref_img.shape[0],
-            QtGui.QImage.Format_RGB888
-        ).rgbSwapped()
-        self.image_frame.setPixmap(QtGui.QPixmap.fromImage(ref_image_display))
-
     def update_editor_images(self):
         img = editor.current_image
         size = 100
@@ -150,6 +141,80 @@ class GUI(QMainWindow):
         for i in range(len(self.editor_image_frames)):
             self.editor_image_frames[i].setPixmap(QtGui.QPixmap.fromImage(img_display))
 
+
+class EditGrid:
+
+    def __init__(self):
+        self.image = create_blank(1024, 1024, rgb_color=(0, 0, 255))
+
+        initial_dim = 3
+        self.x_pos_dim = initial_dim
+        self.x_neg_dim = initial_dim
+        self.y_pos_dim = initial_dim
+        self.y_neg_dim = initial_dim
+
+        self.computed_image = None
+        self.init_computed_images()
+
+        self.q_grid = QtWidgets.QGridLayout()
+        self.q_widgets = None
+
+    def init_computed_images(self):
+        self.computed_image = []
+        for i in range(self.x_dim() * self.y_dim()):
+            self.computed_image.append(None)
+
+    def create_q_widgets(self):
+        self.q_widgets = []
+        for i in range(self.x_dim() * self.y_dim()):
+            self.q_widgets.append(QtWidgets.QLabel())
+            self.q_grid.addWidget(
+                self.q_widgets[-1],
+                i // self.x_dim(),
+                i % self.x_dim(),
+                Qt.AlignCenter
+            )
+
+    def set_grid_parent(self, parent):
+        parent.addLayout(self.q_grid)
+        self.compute_images()
+        self.update_display()
+
+    def compute_images(self):
+        for i in range(self.x_dim()):
+            for j in range(self.y_dim()):
+                if i == self.x_neg_dim and j == self.y_neg_dim:
+                    self.computed_image[self.index(i, j)] = self.image
+                else:
+                    # TODO compute images
+                    self.computed_image[self.index(i, j)] = self.image
+
+    def update_display(self):
+        img = self.image
+        size = 100
+        img = cv2.resize(img, (size, size))
+        img_display = QtGui.QImage(
+            img.data,
+            img.shape[1],
+            img.shape[0],
+            QtGui.QImage.Format_RGB888
+        ).rgbSwapped()
+        for i in range(len(self.q_widgets)):
+            self.q_widgets[i].setPixmap(QtGui.QPixmap.fromImage(img_display))
+
+    def set_image(self, path):
+        self.image = cv2.imread(path)
+        self.compute_images()
+        self.update_display()
+
+    def index(self, x, y):
+        return x + y * self.x_dim()
+
+    def x_dim(self):
+        return 1 + self.x_pos_dim + self.x_neg_dim
+
+    def y_dim(self):
+        return 1 + self.y_pos_dim + self.y_neg_dim
 
 
 class Editor:
@@ -181,7 +246,8 @@ class Editor:
 
     def load_next_image(self):
         if self.image_list_index < len(self.image_list):
-            self.current_image = cv2.imread(self.image_list[self.image_list_index])
+            # self.current_image = cv2.imread(self.image_list[self.image_list_index])
+            edit_grid.set_image(self.image_list[self.image_list_index])
             self.image_list_index += 1
         else:
             print('no more images in directory')
@@ -190,6 +256,9 @@ class Editor:
 def main():
     global editor
     editor = Editor()
+
+    global edit_grid
+    edit_grid = EditGrid()
 
     app = QApplication(sys.argv)
     ex = GUI()
