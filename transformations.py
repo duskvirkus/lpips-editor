@@ -7,12 +7,15 @@ import cv2
 import numpy as np
 from PyQt5 import QtWidgets, QtCore
 
+import edit_grid
 from utils import map_value
 
 
 class TransformationPicker:
 
-    def __init__(self, parent, name):
+    def __init__(self, edit_grid, parent, name):
+        self.edit_grid = edit_grid
+
         self.dropdown_container = QtWidgets.QHBoxLayout()
         dropdown_l = QtWidgets.QLabel(name)
         self.dropdown = QtWidgets.QComboBox()
@@ -26,6 +29,7 @@ class TransformationPicker:
         slider_label = QtWidgets.QLabel('strength')
         self.slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.slider.setRange(0, 100)
+        self.slider.valueChanged[int].connect(self.slider_update)
         self.slider_container.addWidget(slider_label)
         self.slider_container.addWidget(self.slider)
         parent.addLayout(self.slider_container)
@@ -38,6 +42,10 @@ class TransformationPicker:
         self.transformer = cls()
 
         self.slider.setValue(self.transformer.get_strength())
+
+    def slider_update(self, value):
+        self.transformer.set_strength(value)
+        self.edit_grid.update()
 
 
 class Transformer(ABC):
@@ -67,17 +75,38 @@ class TransformerScale(Transformer):
         self.strength = value
 
     def transform_image(self, image: np.ndarray, location: float) -> np.ndarray:
-        scale = map_value(self.strength, 0, 100, 0.5, 1.5) * location
+        scale = (map_value(self.strength, 0, 100, 0.5, 1.5) + 1) * map_value(location, -1, 1, 0, 1)
+        if scale == 0:
+            return image.copy()
         out = image.copy()
+        start_shape = out.shape
+        dim = (int(out.shape[1] * scale), int(out.shape[0] * scale))
         if scale > 1:
-            start_shape = out.shape
-
-            dim = (int(out.shape[1] * scale), int(out.shape[0] * scale))
+            out = cv2.resize(out, dim, interpolation=cv2.INTER_AREA)
+            x_crop = (dim[0] - start_shape[1]) // 2
+            y_crop = (dim[1] - start_shape[0]) // 2
+            out = out[y_crop:dim[1] - y_crop, x_crop:dim[0] - x_crop]
+        else:
             out = cv2.resize(out, dim, interpolation=cv2.INTER_AREA)
 
-            x_crop = (dim[0] - start_shape[1]) / 2
-            y_crop = (dim[1] - start_shape[0]) / 2
-            out = out[y_crop:dim[1] - y_crop, x_crop:dim[0] - x_crop]
+            pad_x = (start_shape[1] - dim[0]) // 2
+            pad_y = (start_shape[0] - dim[1]) // 2
+
+            in_img_h, in_img_w, channels = out.shape
+            out_img_h = in_img_h + (pad_y * 2)
+            out_img_w = in_img_w + (pad_x * 2)
+            mask = np.zeros((out_img_h, out_img_w, 1), np.uint8)
+            fill_color = (255, 255, 255)
+            out_img = cv2.copyMakeBorder(out, pad_y, pad_y, pad_x, pad_x, cv2.BORDER_CONSTANT, value=fill_color)
+            mask = cv2.rectangle(mask, (0, 0), (pad_x - 1, out_img_h - 1), (255), -1)
+            mask = cv2.rectangle(mask, (0, 0), (out_img_w - 1, pad_y - 1), (255), -1)
+            mask = cv2.rectangle(mask, (0, out_img_h - pad_y), (out_img_w - 1, out_img_h - 1), (255), -1)
+            mask = cv2.rectangle(mask, (out_img_w - pad_x, 0), (out_img_w - 1, out_img_h - 1), (255), -1)
+
+            out = cv2.inpaint(out_img, mask, 3, cv2.INPAINT_TELEA)
+
+        if out.shape[1] != 1024 or out.shape[0] != 1024:
+            out = cv2.resize(out, (1024, 1024), interpolation=cv2.INTER_AREA)
 
         return out
 
@@ -117,6 +146,7 @@ class ComputeImageData:
 
 def compute_image(thread_id, data: ComputeImageData) -> None:
     while not data.exit_flag:
+        data.indexes[thread_id] = -1
         data.lock.acquire()
         if not data.index_queue.empty():
             data.indexes[thread_id] = data.index_queue.get()
@@ -126,8 +156,8 @@ def compute_image(thread_id, data: ComputeImageData) -> None:
             break
         else:
             image = data.src
-            image = data.transformer_x.transform_image(image, data.locations[data.indexes[thread_id]][0])
-            image = data.transformer_y.transform_image(image, data.locations[data.indexes[thread_id]][1])
+            image = data.transformer_x.transform_image(image, data.locations[data.indexes[thread_id]][1])
+            image = data.transformer_y.transform_image(image, data.locations[data.indexes[thread_id]][0])
             if image is not None:
                 data.lock.acquire()
                 data.output_images.append((data.indexes[thread_id], image))
@@ -156,7 +186,7 @@ def compute_images(data: ComputeImageData) -> [np.ndarray]:
     out = []
     for i in range(len(data.output_images)):
         # print(data.output_images[i])
-        out[i] = None
+        out.append(None)
 
     for a in data.output_images:
         out[a[0]] = a[1]

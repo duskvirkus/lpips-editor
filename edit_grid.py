@@ -33,6 +33,8 @@ class EditGrid:
         self.x_transformation_picker = None
         self.y_transformation_picker = None
 
+        self.initialized = False
+
     def init_computed_images(self):
         self.computed_images = []
         for i in range(self.x_dim() * self.y_dim()):
@@ -78,14 +80,21 @@ class EditGrid:
         self.y_offset_container.addWidget(self.y_offset)
         self.transformation_panel.addLayout(self.y_offset_container)
 
-        self.x_transformation_picker = TransformationPicker(self.transformation_panel, 'x transformation')
-        self.y_transformation_picker = TransformationPicker(self.transformation_panel, 'y transformation')
+        self.x_transformation_picker = TransformationPicker(self, self.transformation_panel, 'x transformation')
+        self.y_transformation_picker = TransformationPicker(self, self.transformation_panel, 'y transformation')
+
+        self.initialized = True
 
     def set_grid_parent(self, parent):
         parent.addLayout(self.transformation_panel)
         parent.addLayout(self.q_grid)
         self.compute_images()
         self.update_display()
+
+    def update(self):
+        if self.initialized:
+            self.compute_images()
+            self.update_display()
 
     def compute_images(self):
         # for i in range(self.x_dim()):
@@ -99,8 +108,8 @@ class EditGrid:
         locations = []
         for i in range(self.x_dim() * self.y_dim()):
             locations.append((
-                map_value(i // self.x_dim(), 0, self.x_dim(), 0, 1),
-                map_value(i % self.x_dim(), 0, self.y_dim(), 0, 1)
+                map_value(i // self.x_dim(), 0, self.x_dim(), -1, 1),
+                map_value(i % self.x_dim(), 0, self.y_dim(), -1, 1)
             ))
 
         data = ComputeImageData(
@@ -113,16 +122,16 @@ class EditGrid:
         self.computed_images = compute_images(data)
 
     def update_display(self):
-        img = self.image
-        size = 100
-        img = cv2.resize(img, (size, size))
-        img_display = QtGui.QImage(
-            img.data,
-            img.shape[1],
-            img.shape[0],
-            QtGui.QImage.Format_RGB888
-        ).rgbSwapped()
-        for i in range(len(self.q_widgets)):
+        for i in range(len(self.computed_images)):
+            img = self.computed_images[i].copy()
+            size = 100
+            img = cv2.resize(img, (size, size))
+            img_display = QtGui.QImage(
+                img.data,
+                img.shape[1],
+                img.shape[0],
+                QtGui.QImage.Format_RGB888
+            ).rgbSwapped()
             self.q_widgets[i].setPixmap(QtGui.QPixmap.fromImage(img_display))
 
     def set_image(self, img):
