@@ -40,6 +40,10 @@ class Window(QMainWindow):
         self.use_gpu_checkbox.setChecked(True)
         # self.navigation.addWidget(self.use_gpu_checkbox)
 
+        self.run_lpips = QtWidgets.QPushButton('Run lpips')
+        self.run_lpips.clicked.connect(self.run_lpips_func)
+        self.navigation.addWidget(self.run_lpips)
+
         self.next_image = QtWidgets.QPushButton('Next Image')
         self.next_image.clicked.connect(self.next_image_func)
         self.navigation.addWidget(self.next_image)
@@ -77,3 +81,6 @@ class Window(QMainWindow):
 
     def next_image_func(self):
         self.controller.next_image()
+
+    def run_lpips_func(self):
+        self.controller.run_lpips()
