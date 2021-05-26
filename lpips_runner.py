@@ -6,6 +6,7 @@ class LpipsRunner:
     def __init__(self, use_gpu):
         self.use_gpu = use_gpu
 
+        # TODO load model in separate thread for faster startup
         self.loss_fn = lpips.LPIPS(net='alex', version='0.1')
         if self.use_gpu:
             self.loss_fn.cuda()

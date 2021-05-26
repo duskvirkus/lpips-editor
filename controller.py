@@ -10,7 +10,7 @@ from utils import get_image_paths
 class Controller:
 
     def __init__(self):
-        self.edit_grid = EditGrid(self)
+        self.edit_grid = EditGrid()
         self.comparison_list = ComparisonList()
 
         self.dataset_images_paths = None
