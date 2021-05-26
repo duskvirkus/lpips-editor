@@ -21,15 +21,6 @@ def main():
     ex = Window(controller)
     sys.exit(app.exec_())
 
-    # global editor
-    # editor = Conroller()
-    #
-    # global edit_grid
-    # edit_grid = EditGrid()
-    #
-    #
-    # ex = GUI()
-
 
 if __name__ == '__main__':
     main()

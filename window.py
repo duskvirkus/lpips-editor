@@ -1,5 +1,4 @@
 from PyQt5 import QtWidgets
-from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QCheckBox
 
 
@@ -39,7 +38,7 @@ class Window(QMainWindow):
 
         self.use_gpu_checkbox = QCheckBox('Use GPU')
         self.use_gpu_checkbox.setChecked(True)
-        self.navigation.addWidget(self.use_gpu_checkbox)
+        # self.navigation.addWidget(self.use_gpu_checkbox)
 
         self.next_image = QtWidgets.QPushButton('Next Image')
         self.next_image.clicked.connect(self.next_image_func)
