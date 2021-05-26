@@ -38,7 +38,7 @@ class Window(QMainWindow):
 
         self.use_gpu_checkbox = QCheckBox('Use GPU')
         self.use_gpu_checkbox.setChecked(True)
-        self.navigation.addWidget(self.use_gpu_checkbox)
+        # self.navigation.addWidget(self.use_gpu_checkbox)
 
         self.next_image = QtWidgets.QPushButton('Next Image')
         self.next_image.clicked.connect(self.next_image_func)
