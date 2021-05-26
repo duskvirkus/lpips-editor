@@ -1,13 +1,27 @@
+import os
 import queue
 import threading
+import time
+
 import cv2
 
 
-def load_images_multi_thread(paths, thread_count):
-    load_images_multi_thread(paths, thread_count, False)
+def load_images(dir_path, thread_count=1, verbose=False):
+    paths = []
+    for root, subdirs, files in os.walk(dir_path):
+        if verbose:
+            print('--\nroot = ' + root)
+        for subdir in subdirs:
+            if verbose:
+                print('\t- subdirectory ' + subdir)
+        for filename in files:
+            file_path = os.path.join(root, filename)
+            paths.append(file_path)
+    return load_images_multi_thread(paths, thread_count, verbose)
 
 
-def load_images_multi_thread(paths, thread_count, verbose):
+def load_images_multi_thread(paths, thread_count=1, verbose=False):
+    paths_len = len(paths)
     data = LoadData(paths, verbose)
     threads = []
 
@@ -17,6 +31,11 @@ def load_images_multi_thread(paths, thread_count, verbose):
 
     while not data.paths_queue.empty():
         pass
+
+    timeout_count = 1000
+    while len(data.images) != paths_len and timeout_count > 0:
+        time.sleep(1)
+        timeout_count -= 1
 
     data.exit_flag = True
 

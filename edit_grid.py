@@ -1,5 +1,5 @@
 import cv2
-from PyQt5 import QtWidgets, QtGui, Qt
+from PyQt5 import QtWidgets, QtGui, QtCore
 
 from utils import create_blank_image
 
@@ -34,7 +34,7 @@ class EditGrid:
                 self.q_widgets[-1],
                 i // self.x_dim(),
                 i % self.x_dim(),
-                Qt.AlignCenter
+                QtCore.Qt.AlignCenter
             )
 
     def set_grid_parent(self, parent):
@@ -64,8 +64,8 @@ class EditGrid:
         for i in range(len(self.q_widgets)):
             self.q_widgets[i].setPixmap(QtGui.QPixmap.fromImage(img_display))
 
-    def set_image(self, path):
-        self.image = cv2.imread(path)
+    def set_image(self, img):
+        self.image = img
         self.compute_images()
         self.update_display()
 

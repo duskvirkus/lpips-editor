@@ -9,6 +9,9 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QTextEdit, QAction, QApplication, QFileDialog
 from PyQt5.QtGui import QIcon, QPixmap
 
+from controller import Controller
+from window import Window
+
 
 def main():
 
@@ -26,7 +29,6 @@ def main():
     #
     #
     # ex = GUI()
-
 
 
 if __name__ == '__main__':
